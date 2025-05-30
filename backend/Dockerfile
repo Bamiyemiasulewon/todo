@@ -1,20 +1,23 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+FROM rust:1.75-slim as builder
+
 WORKDIR /app
 
-FROM chef AS planner
-COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+# Copy manifest and source
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
 
-FROM chef AS builder
-COPY --from=planner /app/recipe.json recipe.json
-# Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json
-# Build application
-COPY . .
-RUN cargo build --release --bin todo-backend
+# Install build dependencies
+RUN apt-get update && apt-get install -y musl-tools pkg-config libssl-dev
 
-# We do not need the Rust toolchain to run the binary!
-FROM debian:bookworm-slim AS runtime
+# Add musl target
+RUN rustup target add x86_64-unknown-linux-musl
+
+# Build
+RUN cargo build --release --target x86_64-unknown-linux-musl
+
+FROM debian:bookworm-slim
+
 WORKDIR /app
-COPY --from=builder /app/target/release/todo-backend /usr/local/bin
-ENTRYPOINT ["/usr/local/bin/todo-backend"]
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/todo-backend /usr/local/bin/
+CMD ["/usr/local/bin/todo-backend"]
+EXPOSE 3000
