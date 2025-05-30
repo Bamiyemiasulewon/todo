@@ -19,5 +19,9 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/todo-backend /usr/local/bin/
+
+# Set the PORT environment variable
+ENV PORT=8080
+
 CMD ["/usr/local/bin/todo-backend"]
-EXPOSE 3000
+EXPOSE 8080
